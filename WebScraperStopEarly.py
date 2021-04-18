@@ -71,7 +71,7 @@ def create_feature_vec_for_post(post,tokenizer):
 
         if len(post_body) > 512:
             post_body = post_body[:512]
-    except:
+    except Exception:
         post_body = ""
     post_score = post.score
     
@@ -190,7 +190,7 @@ def scrape_and_make_vectors(start_date,end_date,proxyList):
                         post_feature_vec = create_feature_vec_for_post(post,tokenizer)
                         avg_vec += post_feature_vec
                         count += 1
-                    except:
+                    except Exception:
                         print("Error trying to process post: " + json["data"][p])
                         continue
                     commentCount = 0
@@ -234,7 +234,7 @@ def scrape_and_make_vectors(start_date,end_date,proxyList):
                                             if commentCount > 100:
                                                 commentsRetrieved = True
                                                 break
-                                        except:
+                                        except Exception:
                                             print("Error occured while attempting to process comment " + str(cResp.json()['data'][0]))
                                             if commentCount == len(commentIDS):
                                                 commentsRetrieved = True
