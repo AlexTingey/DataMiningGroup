@@ -55,6 +55,9 @@ def start_scrubbing_threaded(numThreads,proxyList,start_date,num_months):
         pList = proxyList[startProx:endProx]
         startProx = endProx
         #Don't know behavior if day >=30, Febuary may fuck everything up if the initial day is >28
+
+
+        
         if start_date.month ==12:
             end_date = start_date.replace(year=start_date.year+1,month = 1, day = start_date.day)
         else:
@@ -149,6 +152,7 @@ def scrape_and_make_vectors(start_date,end_date,proxyList):
     proxyIdx = 0
     proxy = {"http":proxyList[proxyIdx]}
     while start_date <= end_date:
+        print(f"Starting date: {start_date}")
         next_date = start_date + delta
         #TODO: Find a solution to the potential problem that api only returns 100
         #      results per request. May be problematic for both comments&posts
