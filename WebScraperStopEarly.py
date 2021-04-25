@@ -201,8 +201,13 @@ def scrape_and_make_vectors(start_date,end_date,proxyList):
                     commentCount = 0
                     numRetries = 0
                     while commentsRetrieved == False:
-                        commentIdReq ="https://api.pushshift.io/reddit/submission/comment_ids/" + post.id
-                        resp = requests.get(commentIdReq,proxies = proxy)
+                        try:
+                            commentIdReq ="https://api.pushshift.io/reddit/submission/comment_ids/" + post.id
+                            resp = requests.get(commentIdReq,proxies = proxy)
+                        except ConnectionError:
+                            print("A connection error occured while attempting to fetch the next comment \n write out what we have so far")
+                            print("saving data")
+                            np.savetxt('data' + str(start_date) + '.csv', data, delimiter=",")
                         #Make sure we try again until we recieve the response to query
                         if(resp.status_code == 200):
                             if(proxyIdx == len(proxyList)-1):
@@ -220,7 +225,12 @@ def scrape_and_make_vectors(start_date,end_date,proxyList):
 
                                 for id in commentIDS:
                                     commentReq = "https://api.pushshift.io/reddit/comment/search?ids=" + id
-                                    cResp = requests.get(commentReq,proxies = proxy)
+                                    try:
+                                        cResp = requests.get(commentReq,proxies = proxy)
+                                    except ConnectionError:
+                                        print("A connection error occured while attempting to fetch the next comment \n write out what we have so far")
+                                        print("saving data")
+                                        np.savetxt('data' + str(start_date) + '.csv', data, delimiter=",")
                                     if cResp.status_code ==200:
                                         if proxyIdx == len(proxyList) - 1:
                                             proxyIdx = 0
