@@ -153,14 +153,15 @@ def scrape_and_make_vectors(start_date,end_date,proxyList):
     proxy = {"http":proxyList[proxyIdx]}
     while start_date <= end_date:
         print(f"Starting date: {start_date}")
-        next_date = start_date + delta
         #TODO: Find a solution to the potential problem that api only returns 100
         #      results per request. May be problematic for both comments&posts
         reqStr = ("https://api.pushshift.io/reddit/search/submission/?subreddit=" + 
         subreddit + "&sort=desc&sort_type=created_utc&after=" + str(start_date) + 
-        "&before=" + str(next_date) +"&size=100&aggs=link_id")
+        "&before=" + str(start_date + delta) +"&size=100&aggs=link_id")
         resp = requests.get(reqStr,proxies = proxy)
         if resp.status_code ==200:
+            next_date = start_date + delta
+
             if(proxyIdx == len(proxyList)-1):
                 proxyIdx = 0
                 proxy = {'http':proxyList[proxyIdx]}
@@ -198,6 +199,7 @@ def scrape_and_make_vectors(start_date,end_date,proxyList):
                         print("Error trying to process post: " + json["data"][p])
                         continue
                     commentCount = 0
+                    numRetries = 0
                     while commentsRetrieved == False:
                         commentIdReq ="https://api.pushshift.io/reddit/submission/comment_ids/" + post.id
                         resp = requests.get(commentIdReq,proxies = proxy)
@@ -240,10 +242,27 @@ def scrape_and_make_vectors(start_date,end_date,proxyList):
                                                 break
                                         except Exception:
                                             print("Error occured while attempting to process comment " + str(cResp.json()['data'][0]))
-                                            if commentCount == len(commentIDS):
+                                            if commentCount >= len(commentIDS):
                                                 commentsRetrieved = True
                                                 
                                             continue
+                                    else:
+                                        if commentCount >= len(commentIDS):
+                                            commentsRetrieved = True
+                                        continue  
+                                commentsRetrieved = True    
+                        else:
+                            if proxyIdx == len(proxyList) - 1:
+                                proxyIdx = 0
+                                proxy = {'http':proxyList[proxyIdx]}
+                            else:
+                                proxyIdx += 1
+                                proxy = {'http':proxyList[proxyIdx]}
+
+                            if numRetries >= 5:
+                                commentsRetrieved = True
+                            numRetries += 1    
+
             avg_vec = avg_vec/count
             avg_vec = np.insert(avg_vec, 0, time.mktime(start_date.timetuple()))
             data = np.vstack((data, avg_vec))
@@ -253,6 +272,6 @@ def scrape_and_make_vectors(start_date,end_date,proxyList):
 
 ################################################
 ##############  MAIN METHOD HERE  ##############
-################################################
+#####################################
 start_date = datetime.date(2017,1,1)
 start_scrubbing_threaded(12,proxyList,start_date,12)
