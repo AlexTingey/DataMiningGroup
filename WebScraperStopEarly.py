@@ -74,7 +74,7 @@ def create_feature_vec_for_post(post,tokenizer):
 
         if len(post_body) > 512:
             post_body = post_body[:512]
-    except Exception:
+    except Exception as e:
         post_body = ""
     post_score = post.score
     
@@ -195,7 +195,7 @@ def scrape_and_make_vectors(start_date,end_date,proxyList):
                         post_feature_vec = create_feature_vec_for_post(post,tokenizer)
                         avg_vec += post_feature_vec
                         count += 1
-                    except Exception:
+                    except Exception as e:
                         print("Error trying to process post: " + json["data"][p])
                         continue
                     commentCount = 0
@@ -204,7 +204,7 @@ def scrape_and_make_vectors(start_date,end_date,proxyList):
                         try:
                             commentIdReq ="https://api.pushshift.io/reddit/submission/comment_ids/" + post.id
                             resp = requests.get(commentIdReq,proxies = proxy)
-                        except ConnectionError:
+                        except Exception as e:
                             print("A connection error occured while attempting to fetch the next comment \n write out what we have so far")
                             print("saving data")
                             np.savetxt('data' + str(start_date) + '.csv', data, delimiter=",")
@@ -227,7 +227,7 @@ def scrape_and_make_vectors(start_date,end_date,proxyList):
                                     commentReq = "https://api.pushshift.io/reddit/comment/search?ids=" + id
                                     try:
                                         cResp = requests.get(commentReq,proxies = proxy)
-                                    except ConnectionError:
+                                    except Exception as e:
                                         print("A connection error occured while attempting to fetch the next comment \n write out what we have so far")
                                         print("saving data")
                                         np.savetxt('data' + str(start_date) + '.csv', data, delimiter=",")
@@ -250,7 +250,7 @@ def scrape_and_make_vectors(start_date,end_date,proxyList):
                                             if commentCount > 100:
                                                 commentsRetrieved = True
                                                 break
-                                        except Exception:
+                                        except Exception as e:
                                             print("Error occured while attempting to process comment " + str(cResp.json()['data'][0]))
                                             if commentCount >= len(commentIDS):
                                                 commentsRetrieved = True
