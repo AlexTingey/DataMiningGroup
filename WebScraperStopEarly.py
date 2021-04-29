@@ -46,7 +46,7 @@ inputs:
 """
 def start_scrubbing_threaded(numThreads,proxyList,start_date,num_months):
     monthsDif = int(num_months/numThreads)#Want the floor, simplest way for now
-    
+    threads = []
     proxDif = int(100/numThreads)
     startProx = 0
     for i in range(numThreads):
@@ -64,9 +64,13 @@ def start_scrubbing_threaded(numThreads,proxyList,start_date,num_months):
             end_date = start_date.replace(year=start_date.year,month = start_date.month+1, day = start_date.day)
         thr = threading.Thread(target=scrape_and_make_vectors, args=[start_date,end_date,pList])
         thr.start()
+        threads.append(thr)
         start_date = end_date
     print("threads out")
 
+    for thread in threads:
+        thread.join()
+    print("threads finished working")
 
 def create_feature_vec_for_post(post,tokenizer):
     try:
@@ -283,5 +287,5 @@ def scrape_and_make_vectors(start_date,end_date,proxyList):
 ################################################
 ##############  MAIN METHOD HERE  ##############
 #####################################
-start_date = datetime.date(2017,1,1)
+start_date = datetime.date(2016,1,1)
 start_scrubbing_threaded(12,proxyList,start_date,12)
