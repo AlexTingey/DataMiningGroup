@@ -79,6 +79,12 @@ def smaSignal(sma5,sma10,prevSma5i,prevSma10i):
     global prevSma10
     ret = 0
     #We look for sma5 to cross sma10 w/ positive slope -Indicates Buy
+    fuck = sum(prevSma5i)/5
+    shit = sum(prevSma10i)/10
+
+    ass = sum(sma5)/5
+    retard = sum(sma10)/10
+
     if(sum(prevSma5i)/5 < sum(prevSma10i)/10):
         if(sum(sma5)/5 >sum(sma10)/10):
             ret = 1
@@ -87,8 +93,8 @@ def smaSignal(sma5,sma10,prevSma5i,prevSma10i):
         if (sum(sma5)/5<sum(sma10)/10):
             ret =  -1
 
-    prevSma5 = sma5
-    prevSma10 = sma10
+    prevSma5 = list.copy(sma5)
+    prevSma10 = list.copy(sma10)
     return ret
 
 
