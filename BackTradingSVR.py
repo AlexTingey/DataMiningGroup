@@ -54,22 +54,15 @@ def predictFuture(date,nAdv):
     #C represents tradeoff in minimizing the correctness of the classifier and allowing support vectors
     # epsilon is our error tolerance
     svReg.fit(train_x,train_y)
-    x_pred = svReg.predict(valid_x)
+    x_pred = svReg.predict(recDF)
     prevValue = x_pred[-1]
     return x_pred[-1]
 
-#Run on init, want to predict sma of startdate+1,startdate+2,startdate+3,startdate+4,startdate+5 nums
-def init5DaySMA(date):
+#Run on init, want to predict sma of startdate+1,startdate+2,...,startdate+n nums
+def initNDaySMA(date,n):
     delta = datetime.timedelta(days = 1)
     arr = []
-    for i in range(1,6):
-        arr.append(predictFuture(date,i))
-    return arr
-
-def init10DaySMA(date):
-    delta = datetime.timedelta(days = 1)
-    arr = []
-    for i in range(1,11):
+    for i in range(1,n+1):
         arr.append(predictFuture(date,i))
     return arr
 
@@ -107,7 +100,7 @@ class SmaCross(bt.SignalStrategy):
 class MyAllInSizer(bt.Sizer):
     def _getsizing(self,comminfo, cash, data, isbuy):
         if isbuy:
-            size = self.broker.get_cash() / self.strategy.datas[0].open
+            size = int(self.broker.get_cash() / self.strategy.datas[0].open)
             return size
         position = self.broker.getposition(data)
         if not position.size:
@@ -152,13 +145,13 @@ class SVR_SMA(bt.SignalStrategy):
     def next(self):
         self.log('Close, %.2f' % self.dataclose[0])
         if(len(self.sma5) <5):#means this is first iter
-            self.sma5 = init5DaySMA(self.datas[0].datetime.date(0))
+            self.sma5 = initNDaySMA(self.datas[0].datetime.date(0),5)
         else:
             self.sma5.pop(0)
             self.sma5.append(predictFuture(self.datas[0].datetime.date(0),5))
 
         if(len(self.sma10) <10):#means this is first iter
-            self.sma10 = init10DaySMA(self.datas[0].datetime.date(0))
+            self.sma10 = initNDaySMA(self.datas[0].datetime.date(0),10)
         else:
             self.sma10.pop(0)
             self.sma10.append(predictFuture(self.datas[0].datetime.date(0),10))
@@ -265,7 +258,7 @@ tda = 0
 cerebro = bt.Cerebro()
 data = bt.feeds.YahooFinanceData(dataname='BTC-USD', fromdate=datetime.datetime(2019, 1, 1), todate=datetime.datetime(2019, 12, 25))
 cerebro.adddata(data)
-#cerebro.addsizer(MyAllInSizer)
+cerebro.addsizer(MyAllInSizer)
 cerebro.broker.set_cash(10000)
 #cerebro.addstrategy(SVR)
 prevSma5 = [0]*5
