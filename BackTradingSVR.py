@@ -67,6 +67,17 @@ class SmaCross(bt.SignalStrategy):
         crossover = bt.ind.CrossOver(sma1, sma2)
         self.signal_add(bt.SIGNAL_LONG, crossover)
 
+class MyAllInSizer(bt.Sizer):
+    def _getsizing(self,comminfo, cash, data, isbuy):
+        if isbuy:
+            size = self.broker.get_cash() / self.strategy.datas[0].open
+            return size
+        position = self.broker.getposition(data)
+        if not position.size:
+            return 0
+        size = self.broker.getposition(data = self.strategy.datas[0]).size
+        return size
+
 class SVR_SMA(bt.SignalStrategy):
     def log(self, txt, dt = None):
         dt = dt or self.datas[0].datetime.date(0)
@@ -76,8 +87,6 @@ class SVR_SMA(bt.SignalStrategy):
         # Keep a reference to the "close" line in the data[0] dataseries
         self.dataclose = self.datas[0].close
         self.order = None
-
-
 
     def notify_order(self, order):
         if order.status in [order.Submitted, order.Accepted]:
@@ -119,8 +128,9 @@ class SVR_SMA(bt.SignalStrategy):
         else:
             if pred < self.dataclose[0]:
                 if self.dataclose[0] > self.dataclose[-1]:#If prices projected to dip after they've been rising, we sell
-                    self.log('PAPER HANDED BITCH, %.2f' % self.dataclose[0])
-                    self.order = self.sell()
+                    if self.dataclose[-1] > self.dataclose[-2]:
+                       self.log('PAPER HANDED BITCH, %.2f' % self.dataclose[0])
+                       self.order = self.sell()
 
 
 """
@@ -139,17 +149,25 @@ classification_logits = model(**good_example_tokenized)[0]
 classes = ["positive", "negative", "neutral"]
 evaluate = torch.softmax(classification_logits, dim=1)[0]
 """
-dataSpans = [('2014-09-19', '2016-01-02'), ('2017-02-02', '2017-02-26'), ('2017-05-02', '2017-07-02'), ('2017-08-02', '2017-09-02'), ('2018-01-02', '2020-01-02')]
+dataSpans = [('2014-09-19', '2016-01-01'), ('2016-02-02', '2016-08-01'), ('2016-09-02', '2016-12-01'), 
+('2017-02-02', '2017-02-25'), ('2017-05-02', '2017-07-01'), ('2017-08-02', '2017-09-01'), 
+('2018-01-02', '2020-01-01')]
 btc_data = getBTCData(dataSpans)
 df = pd.read_csv('C:\\Users\\Spencer\\Desktop\\DataMining\\DataMiningGroup\\stackedData.csv')
+df = df.drop(['Unnamed: 0', '0'], axis=1)
+data_copy = df[:]
+data_copy['BTC_OPEN'] = btc_data['Open'].values
+data_copy['BTC_HIGH'] = btc_data['High'].values
+data_copy['BTC_LOW'] = btc_data['Low'].values
+data_copy['BTC_VOLUME'] = btc_data['Volume'].values
+df= data_copy
 prevValue = 0
 
 #Trying to do the backtracker here
 cerebro = bt.Cerebro()
-dataSpans = [('2019-01-02', '2020-01-02')]
-data = getBTCData(dataSpans)
-data = bt.feeds.YahooFinanceData(dataname='BTC-USD', fromdate=datetime.datetime(2019, 1, 2), todate=datetime.datetime(2020, 1, 2))
+data = bt.feeds.YahooFinanceData(dataname='BTC-USD', fromdate=datetime.datetime(2019, 1, 1), todate=datetime.datetime(2020, 1, 1))
 cerebro.adddata(data)
+#cerebro.addsizer(MyAllInSizer)
 cerebro.broker.set_cash(10000)
 cerebro.addstrategy(SVR_SMA)
 
