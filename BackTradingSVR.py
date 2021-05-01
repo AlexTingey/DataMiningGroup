@@ -67,27 +67,29 @@ def initNDaySMA(date,n):
     return arr
 
 #Signal 0 means hold, 1 means buy, -1 means sell
-def smaSignal(sma5,sma10,prevSma5i,prevSma10i):
-    global prevSma5
-    global prevSma10
+def smaSignal(sma1,sma2,prevSma1i,prevSma2i):
+    global prevSma1
+    global prevSma2
+    global sma1Size
+    global sma2Size
     ret = 0
-    #We look for sma5 to cross sma10 w/ positive slope -Indicates Buy
-    fuck = sum(prevSma5i)/5
-    shit = sum(prevSma10i)/10
+    #We look for sma1 to cross sma2 w/ positive slope -Indicates Buy
+    fuck = sum(prevSma1i)/sma1Size
+    shit = sum(prevSma2i)/sma2Size
 
-    ass = sum(sma5)/5
-    retard = sum(sma10)/10
+    ass = sum(sma1)/sma1Size
+    retard = sum(sma2)/sma2Size
 
-    if(sum(prevSma5i)/5 < sum(prevSma10i)/10):
-        if(sum(sma5)/5 >sum(sma10)/10):
+    if(sum(prevSma1i)/sma1Size < sum(prevSma2i)/sma2Size):
+        if(sum(sma1)/sma1Size >sum(sma2)/sma2Size):
             ret = 1
-    #We look for sma5 to cross sma10 w/negative slope -Indicates Sell
+    #We look for sma1 to cross sma2 w/negative slope -Indicates Sell
     else:
-        if (sum(sma5)/5<sum(sma10)/10):
+        if (sum(sma1)/sma1Size<sum(sma2)/sma2Size):
             ret =  -1
 
-    prevSma5 = list.copy(sma5)
-    prevSma10 = list.copy(sma10)
+    prevSma1 = list.copy(sma1)
+    prevSma2 = list.copy(sma2)
     return ret
 
 
@@ -117,8 +119,8 @@ class SVR_SMA(bt.SignalStrategy):
         # Keep a reference to the "close" line in the data[0] dataseries
         self.dataclose = self.datas[0].close
         self.order = None
-        self.sma5 = [0]
-        self.sma10 = [0]
+        self.sma1 = [0]
+        self.sma2 = [0]
 
     def notify_order(self, order):
         if order.status in [order.Submitted, order.Accepted]:
@@ -144,18 +146,18 @@ class SVR_SMA(bt.SignalStrategy):
 
     def next(self):
         self.log('Close, %.2f' % self.dataclose[0])
-        if(len(self.sma5) <5):#means this is first iter
-            self.sma5 = initNDaySMA(self.datas[0].datetime.date(0),5)
+        if(len(self.sma1) <10):#means this is first iter
+            self.sma1 = initNDaySMA(self.datas[0].datetime.date(0),sma1Size)
         else:
-            self.sma5.pop(0)
-            self.sma5.append(predictFuture(self.datas[0].datetime.date(0),5))
+            self.sma1.pop(0)
+            self.sma1.append(predictFuture(self.datas[0].datetime.date(0),sma1Size))
 
-        if(len(self.sma10) <10):#means this is first iter
-            self.sma10 = initNDaySMA(self.datas[0].datetime.date(0),10)
+        if(len(self.sma2) <20):#means this is first iter
+            self.sma2 = initNDaySMA(self.datas[0].datetime.date(0),sma2Size)
         else:
-            self.sma10.pop(0)
-            self.sma10.append(predictFuture(self.datas[0].datetime.date(0),10))
-        indicator = smaSignal(self.sma5,self.sma10,prevSma5,prevSma10)
+            self.sma2.pop(0)
+            self.sma2.append(predictFuture(self.datas[0].datetime.date(0),sma2Size))
+        indicator = smaSignal(self.sma1,self.sma2,prevSma1,prevSma2)
         #Indicator 1 means buy
         if indicator == 1:
             self.log('YOLO $WAG, %.2f' % self.dataclose[0])
@@ -256,13 +258,15 @@ fda = 0
 tda = 0
 #Trying to do the backtracker here
 cerebro = bt.Cerebro()
-data = bt.feeds.YahooFinanceData(dataname='BTC-USD', fromdate=datetime.datetime(2019, 1, 1), todate=datetime.datetime(2019, 12, 25))
+data = bt.feeds.YahooFinanceData(dataname='BTC-USD', fromdate=datetime.datetime(2019, 1, 1), todate=datetime.datetime(2019, 12, 15))
 cerebro.adddata(data)
 cerebro.addsizer(MyAllInSizer)
 cerebro.broker.set_cash(10000)
 #cerebro.addstrategy(SVR)
-prevSma5 = [0]*5
-prevSma10 = [0]*10
+sma1Size = 10
+sma2Size = 20
+prevSma1 = [0]*sma1Size
+prevSma2 = [0]*sma2Size
 cerebro.addstrategy(SVR_SMA)
 # Print out the starting conditions
 print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
