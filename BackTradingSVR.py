@@ -31,11 +31,10 @@ def getBTCData(dateSpans):
 
 
 """
-Method to predict closing date of next timeframe
-Creates regression model using feature vectors of last 600 days
-
+Method to predict closing date of next timeframe nadv in future
+Creates regression model using feature vectors of last 2 yrs
 """
-def predictNextClose(date):
+def predictFuture(date,nAdv):
     #Get relevant feature vectors to train
     global prevValue
     indexList = list(btc_data.index.values)
@@ -46,13 +45,11 @@ def predictNextClose(date):
     
     recDF = df[dateIdx-730:dateIdx]
 
-    recBTC = btc_data['Close'][dateIdx-729:dateIdx+1]
+    recBTC = btc_data['Close'][dateIdx-(730-nAdv):(dateIdx + nAdv)]
     #Get relevant feature 
     scaler = MinMaxScaler()
     scale_data = scaler.fit_transform(recDF, recBTC)
     train_x, valid_x, train_y, valid_y = train_test_split(scale_data, recBTC, test_size = 0.2)
-
-
     svReg = SVR(C = 100000, epsilon = 0.5)
     #C represents tradeoff in minimizing the correctness of the classifier and allowing support vectors
     # epsilon is our error tolerance
@@ -60,6 +57,40 @@ def predictNextClose(date):
     x_pred = svReg.predict(valid_x)
     prevValue = x_pred[-1]
     return x_pred[-1]
+
+#Run on init, want to predict sma of startdate+1,startdate+2,startdate+3,startdate+4,startdate+5 nums
+def init5DaySMA(date):
+    delta = datetime.timedelta(days = 1)
+    arr = []
+    for i in range(1,6):
+        arr.append(predictFuture(date,i))
+    return arr
+
+def init10DaySMA(date):
+    delta = datetime.timedelta(days = 1)
+    arr = []
+    for i in range(1,11):
+        arr.append(predictFuture(date,i))
+    return arr
+
+#Signal 0 means hold, 1 means buy, -1 means sell
+def smaSignal(sma5,sma10,prevSma5i,prevSma10i):
+    global prevSma5
+    global prevSma10
+    ret = 0
+    #We look for sma5 to cross sma10 w/ positive slope -Indicates Buy
+    if(sum(prevSma5i)/5 < sum(prevSma10i)/10):
+        if(sum(sma5)/5 >sum(sma10)/10):
+            ret = 1
+    #We look for sma5 to cross sma10 w/negative slope -Indicates Sell
+    else:
+        if (sum(sma5)/5<sum(sma10)/10):
+            ret =  -1
+
+    prevSma5 = sma5
+    prevSma10 = sma10
+    return ret
+
 
 class SmaCross(bt.SignalStrategy):
     def __init__(self):
@@ -81,12 +112,14 @@ class MyAllInSizer(bt.Sizer):
 class SVR_SMA(bt.SignalStrategy):
     def log(self, txt, dt = None):
         dt = dt or self.datas[0].datetime.date(0)
-        print('%s, %s' % (dt.isoformat(), txt))
-
+        print('%s, %s' % (dt.isoformat(), txt))    
+    
     def __init__(self):
         # Keep a reference to the "close" line in the data[0] dataseries
         self.dataclose = self.datas[0].close
         self.order = None
+        self.sma5 = [0]
+        self.sma10 = [0]
 
     def notify_order(self, order):
         if order.status in [order.Submitted, order.Accepted]:
@@ -109,8 +142,66 @@ class SVR_SMA(bt.SignalStrategy):
         # Write down: no pending order
         self.order = None
 
+
     def next(self):
-        pred = predictNextClose(self.datas[0].datetime.date(0))
+        self.log('Close, %.2f' % self.dataclose[0])
+        if(len(self.sma5) <5):#means this is first iter
+            self.sma5 = init5DaySMA(self.datas[0].datetime.date(0))
+        else:
+            self.sma5.pop(0)
+            self.sma5.append(predictFuture(self.datas[0].datetime.date(0),5))
+
+        if(len(self.sma10) <10):#means this is first iter
+            self.sma10 = init10DaySMA(self.datas[0].datetime.date(0))
+        else:
+            self.sma10.pop(0)
+            self.sma10.append(predictFuture(self.datas[0].datetime.date(0),10))
+        indicator = smaSignal(self.sma5,self.sma10,prevSma5,prevSma10)
+        #Indicator 1 means buy
+        if indicator == 1:
+            self.log('YOLO $WAG, %.2f' % self.dataclose[0])
+            self.order = self.buy()
+        #-1 means sell
+        if self.position:#only try to sell if in market
+            if indicator == -1:
+                self.log('PAPER HANDED BITCH, %.2f' % self.dataclose[0])
+                self.order = self.sell()
+        #If we reached this point, neither buy nor sell
+        
+
+class SVR_shitbrainstrat(bt.Strategy):
+    def log(self, txt, dt = None):
+        dt = dt or self.datas[0].datetime.date(0)
+        print('%s, %s' % (dt.isoformat(), txt))
+
+    def __init__(self):
+        # Keep a reference to the "close" line in the data[0] dataseries
+        self.dataclose = self.datas[0].close
+        self.order = None
+    
+    def notify_order(self, order):
+        if order.status in [order.Submitted, order.Accepted]:
+            # Buy/Sell order submitted/accepted to/by broker - Nothing to do
+            return
+
+        # Check if an order has been completed
+        # Attention: broker could reject order if not enough cash
+        if order.status in [order.Completed]:
+            if order.isbuy():
+                self.log('BUY EXECUTED, %.2f' % order.executed.price)
+            elif order.issell():
+                self.log('SELL EXECUTED, %.2f' % order.executed.price)
+
+            self.bar_executed = len(self)
+
+        elif order.status in [order.Canceled, order.Margin, order.Rejected]:
+            self.log('Order Canceled/Margin/Rejected')
+
+        # Write down: no pending order
+        self.order = None
+
+    def next(self):
+        pred = predictFuture(self.datas[0].datetime.date(0),1)
         self.log('Close, %.2f' % self.dataclose[0])
 
         #We're already trying to buy or sell - Must wait
@@ -162,15 +253,18 @@ data_copy['BTC_LOW'] = btc_data['Low'].values
 data_copy['BTC_VOLUME'] = btc_data['Volume'].values
 df= data_copy
 prevValue = 0
-
+fda = 0
+tda = 0
 #Trying to do the backtracker here
 cerebro = bt.Cerebro()
-data = bt.feeds.YahooFinanceData(dataname='BTC-USD', fromdate=datetime.datetime(2019, 1, 1), todate=datetime.datetime(2020, 1, 1))
+data = bt.feeds.YahooFinanceData(dataname='BTC-USD', fromdate=datetime.datetime(2019, 1, 1), todate=datetime.datetime(2019, 12, 25))
 cerebro.adddata(data)
 #cerebro.addsizer(MyAllInSizer)
 cerebro.broker.set_cash(10000)
+#cerebro.addstrategy(SVR)
+prevSma5 = [0]*5
+prevSma10 = [0]*10
 cerebro.addstrategy(SVR_SMA)
-
 # Print out the starting conditions
 print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
 
