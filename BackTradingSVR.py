@@ -46,6 +46,7 @@ def predictFuture(date,nAdv):
     recDF = df[dateIdx-730:dateIdx]
 
     recBTC = btc_data['Close'][dateIdx-(730-nAdv):(dateIdx + nAdv)]
+    
     #Get relevant feature 
     scaler = MinMaxScaler()
     scale_data = scaler.fit_transform(recDF, recBTC)
@@ -74,12 +75,6 @@ def smaSignal(sma1,sma2,prevSma1i,prevSma2i):
     global sma2Size
     ret = 0
     #We look for sma1 to cross sma2 w/ positive slope -Indicates Buy
-    fuck = sum(prevSma1i)/sma1Size
-    shit = sum(prevSma2i)/sma2Size
-
-    ass = sum(sma1)/sma1Size
-    retard = sum(sma2)/sma2Size
-
     if(sum(prevSma1i)/sma1Size < sum(prevSma2i)/sma2Size):
         if(sum(sma1)/sma1Size >sum(sma2)/sma2Size):
             ret = 1
@@ -165,7 +160,7 @@ class SVR_SMA(bt.SignalStrategy):
         #-1 means sell
         if self.position:#only try to sell if in market
             if indicator == -1:
-                self.log('PAPER HANDED BITCH, %.2f' % self.dataclose[0])
+                self.log('Selling now, %.2f' % self.dataclose[0])
                 self.order = self.sell()
         #If we reached this point, neither buy nor sell
         
@@ -221,7 +216,7 @@ class SVR_shitbrainstrat(bt.Strategy):
             if pred < self.dataclose[0]:
                 if self.dataclose[0] > self.dataclose[-1]:#If prices projected to dip after they've been rising, we sell
                     if self.dataclose[-1] > self.dataclose[-2]:
-                       self.log('PAPER HANDED BITCH, %.2f' % self.dataclose[0])
+                       self.log('Selling, %.2f' % self.dataclose[0])
                        self.order = self.sell()
 
 
