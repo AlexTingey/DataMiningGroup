@@ -241,39 +241,45 @@ classification_logits = model(**good_example_tokenized)[0]
 classes = ["positive", "negative", "neutral"]
 evaluate = torch.softmax(classification_logits, dim=1)[0]
 """
-dataSpans = [('2014-09-19', '2016-01-01'), ('2016-02-02', '2016-08-01'), ('2016-09-02', '2016-12-01'), 
-('2017-02-02', '2017-02-25'), ('2017-05-02', '2017-07-01'), ('2017-08-02', '2017-09-01'), 
-('2018-01-02', '2020-01-01')]
-btc_data = getBTCData(dataSpans)
-df = pd.read_csv('C:\\Users\\Spencer\\Desktop\\DataMining\\DataMiningGroup\\stackedData.csv')
-df = df.drop(['Unnamed: 0', '0'], axis=1)
-data_copy = df[:]
-data_copy['BTC_OPEN'] = btc_data['Open'].values
-data_copy['BTC_HIGH'] = btc_data['High'].values
-data_copy['BTC_LOW'] = btc_data['Low'].values
-data_copy['BTC_VOLUME'] = btc_data['Volume'].values
-df= data_copy
-prevValue = 0
-fda = 0
-tda = 0
-#Trying to do the backtracker here
-cerebro = bt.Cerebro()
-data = bt.feeds.YahooFinanceData(dataname='BTC-USD', fromdate=datetime.datetime(2019, 1, 1), todate=datetime.datetime(2019, 12, 15))
-cerebro.adddata(data)
-cerebro.addsizer(MyAllInSizer)
-cerebro.broker.set_cash(10000)
-#cerebro.addstrategy(SVR)
-sma1Size = 10
-sma2Size = 20
-prevSma1 = [0]*sma1Size
-prevSma2 = [0]*sma2Size
-cerebro.addstrategy(SVR_SMA)
-# Print out the starting conditions
-print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
+numTrials = 100
+finalPortfolioValues = []
+for i in range(numTrials):
+    dataSpans = [('2014-09-19', '2016-01-01'), ('2016-02-02', '2016-08-01'), ('2016-09-02', '2016-12-01'), 
+    ('2017-02-02', '2017-02-25'), ('2017-05-02', '2017-07-01'), ('2017-08-02', '2017-09-01'), 
+    ('2018-01-02', '2020-01-01')]
+    btc_data = getBTCData(dataSpans)
+    df = pd.read_csv('C:\\Users\\Alex\\Desktop\\Spring 2021\\Data Mining\\Group project\\dataFiles\\stackedData.csv')
+    df = df.drop(['Unnamed: 0', '0'], axis=1)
+    data_copy = df[:]
+    data_copy['BTC_OPEN'] = btc_data['Open'].values
+    data_copy['BTC_HIGH'] = btc_data['High'].values
+    data_copy['BTC_LOW'] = btc_data['Low'].values
+    data_copy['BTC_VOLUME'] = btc_data['Volume'].values
+    df= data_copy
+    prevValue = 0
+    fda = 0
+    tda = 0
+    #Trying to do the backtracker here
+    cerebro = bt.Cerebro()
+    data = bt.feeds.YahooFinanceData(dataname='BTC-USD', fromdate=datetime.datetime(2019, 1, 1), todate=datetime.datetime(2019, 12, 15))
+    cerebro.adddata(data)
+    cerebro.addsizer(MyAllInSizer)
+    cerebro.broker.set_cash(10000)
+    #cerebro.addstrategy(SVR)
+    sma1Size = 10
+    sma2Size = 20
+    prevSma1 = [0]*sma1Size
+    prevSma2 = [0]*sma2Size
+    cerebro.addstrategy(SVR_SMA)
+    # Print out the starting conditions
+    print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
 
-# Run over everything
-cerebro.run()
+    # Run over everything
+    cerebro.run()
 
-# Print out the final result
-print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
-
+    # Print out the final result
+    print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
+    finalPortfolioValues.append(cerebro.broker.getvalue())
+print(finalPortfolioValues)
+pct_change = [((x - 10,000)/(10,000)) for x in finalPortfolioValues]
+print(f'Average increase: {sum(pct_change)/len(pct_change)}')
