@@ -11,8 +11,8 @@ import threading
 model = AutoModelForSequenceClassification.from_pretrained("ProsusAI/finbert")
 proxyTxt = np.genfromtxt("webshare_100_proxies.txt",delimiter = ':',dtype = str)
 proxyList = []
-user = "czrglanp-dest"
-passW = "poj6zxytidya"
+user = ""
+passW = ""
 for idx in range(len(proxyTxt[:,0])):
     proxyList.append("http://" + user + ":" + passW + "@" + proxyTxt[idx,0] + ":" + proxyTxt[idx,1])
     np.random.shuffle(proxyList)
